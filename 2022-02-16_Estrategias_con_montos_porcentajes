@@ -1,0 +1,104 @@
+WITH
+  ESTRATEGIASTOTALES AS (
+  SELECT
+    MES_CIERRE,
+    NO_DE_TIQUETE,
+    RIGHT ( CONCAT('0000000000',Contrato),10) AS CONTRATOO,
+    ESTRATEGIA_APLICADA,
+    SOLUCION_FINAL,
+      CAST(Apertura AS DATE) AS MESGESTION
+  FROM
+    `gcp-bia-tmps-vtr-dev-01.gcp_temp_cr_dev_01.2022-02-02_TIQUETES_GENERALES_DE_DESCONEXIONES_T`
+  WHERE
+    ANHO_CIERRE =2021
+  GROUP BY
+    1,
+    2,
+    3,
+    4,
+    5,
+    6),
+
+  MONTOSDESCUENTOS AS(
+  SELECT
+    N__mero_Tiquete,
+    RIGHT( CONCAT('0000000000',Contrato), 10) CONTRATOU,
+    Porcentaje_de_Descuento,
+    Monto_de_Descuento,
+    FechaTiquete
+  FROM
+    `gcp-bia-tmps-vtr-dev-01.gcp_temp_cr_dev_01.2022-02-08_DESCUENTOS_OVAL_T`
+  GROUP BY
+    1,
+    2,
+    3,
+    4,5),
+
+  JOINTABLAS AS (
+  SELECT
+    e.NO_DE_TIQUETE,
+    e.CONTRATOO AS eCONTRATO,
+    e.ESTRATEGIA_APLICADA,
+    e.SOLUCION_FINAL,
+    e.MES_CIERRE,
+    e.MESGESTION,
+    m.N__mero_Tiquete,
+    m.CONTRATOU AS mContrato,
+    m.Porcentaje_de_Descuento,
+    m.Monto_de_Descuento,
+    m.FechaTiquete
+  FROM
+    ESTRATEGIASTOTALES e
+  LEFT JOIN
+    MONTOSDESCUENTOS m
+  ON
+    e.CONTRATOO = m.CONTRATOU 
+   WHERE
+    ((m.FechaTiquete >= CAST( e.MESGESTION AS DATE)
+        AND DATE_DIFF( m.FechaTiquete , CAST(e.MESGESTION AS DATE), DAY ) <=30))
+    ),
+
+  TABLAFINAL AS (
+  SELECT
+    j.NO_DE_TIQUETE,
+    j.N__mero_Tiquete,
+    j.MES_CIERRE,
+    j.eContrato,
+    j.ESTRATEGIA_APLICADA,
+    J.SOLUCION_FINAL,
+    j.Porcentaje_de_Descuento,
+    j.Monto_de_Descuento
+  FROM
+    JOINTABLAS j
+  GROUP BY
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8 )
+
+SELECT
+  f.MES_CIERRE,
+  f.NO_DE_TIQUETE,
+  f.N__mero_Tiquete,
+  f.eContrato,
+  f.ESTRATEGIA_APLICADA,
+  f.SOLUCION_FINAL,
+  f.Porcentaje_de_Descuento,
+  f.Monto_de_Descuento
+FROM
+  TABLAFINAL f
+GROUP BY
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ORDER BY
+  MES_CIERRE
